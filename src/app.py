@@ -1,28 +1,37 @@
-from flask import Flask, render_template
+from flask import Flask, jsonify, request
+from flask_mysqldb import MySQL
+from flask_cors import CORS
+
+from config import config
 
 app = Flask(__name__)
+CORS(app)
 
-@app.route("/") #Decorador o ruta
-def index():
-    titulo='Pagina de Inicio'
-    listado = ['Python', 'Flask', 'Jinja2', 'HTML', 'CSS']
-    return render_template("index.html", titulo=titulo, listado=listado)
+app.config.from_object(config['development'])
+con=MySQL(app)
 
-@app.route("/hola")
-def hola():
-    return "<h1>Hola Esteban y a PWA</h1>"
+@app.route("/alumnos", methods=['GET'])
+def lista_alumnos():
+    try:
+        cursor = con.connection.cursor()
+        sql="select * from alumnos"
+        cursor.execute(sql)
+        datos = cursor.fetchall()
+        alumnos=[]
 
-@app.route("/user/<string:nom>")
-def user(nom):
-    return "<h1>Hola Usuario: {} </h1>".format(nom)
+        for fila in datos:
+            alumno={"matricula":fila[0], "nombre":fila[1],
+                    "apaterno":fila[2], "amaterno":fila[3],
+                    "correo":fila[4]}
+            alumnos.append(alumno)
 
-@app.route("/user/<int:id>/<string:username>")
-def cuenta(id, username):
-    return "ID: {} Nombre: {}".format(id,username)
+        return jsonify({'alumnos':alumnos,'mensaje':"Lista de Alumnos",'exito':True})
+    except Exception as ex:
+        return jsonify({"mensage": "error{}".format(ex), 'exito':False})
 
-@app.route("/suma/<float:n1>/<float:n2>")
-def funcion(n1,n2):
-    return "la suma es de: {}".format(n1+n2)
+def pagina_no_encontrada(error):
+    return "<h1>Pagina no encontrada</h1>"
 
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    app.register_error_handler(404,pagina_no_encontrada)
+    app.run(host='0.0.0.0', port=5000)
